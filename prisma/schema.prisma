@@ -1,0 +1,165 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               String         @id @default(cuid())
+  nome             String
+  email            String         @unique
+  senha            String?
+  departamento_id  String?
+  role             Role           @default(usuario)
+  pontos           Int            @default(0)
+  votos_disponiveis Int           @default(10)
+  ativo            Boolean        @default(true)
+  created_at       DateTime       @default(now())
+
+  departamento     Department?    @relation("UserDept", fields: [departamento_id], references: [id])
+  ideas            Idea[]         @relation("AutorIdeas")
+  votes            Vote[]
+  comments         Comment[]
+  followers        IdeaFollower[]
+  notifications    Notification[]
+  executions       Execution[]
+  managedDepts     Department[]   @relation("ResponsavelDept")
+}
+
+enum Role {
+  usuario
+  gestor
+  executor
+  admin
+}
+
+model Department {
+  id             String    @id @default(cuid())
+  nome           String
+  responsavel_id String?
+  descricao      String?
+  created_at     DateTime  @default(now())
+
+  responsavel    User?     @relation("ResponsavelDept", fields: [responsavel_id], references: [id])
+  users          User[]    @relation("UserDept")
+  ideas          Idea[]
+}
+
+model IdeaStatus {
+  id    String @id @default(cuid())
+  nome  String
+  ordem Int
+  cor   String @default("#6B7280")
+
+  ideas Idea[]
+}
+
+model Idea {
+  id              String         @id @default(cuid())
+  titulo          String
+  descricao       String
+  problema        String?
+  solucao         String?
+  beneficio       String?
+  autor_id        String
+  departamento_id String?
+  status_id       String
+  created_at      DateTime       @default(now())
+  updated_at      DateTime       @updatedAt
+
+  autor           User           @relation("AutorIdeas", fields: [autor_id], references: [id])
+  departamento    Department?    @relation(fields: [departamento_id], references: [id])
+  status          IdeaStatus     @relation(fields: [status_id], references: [id])
+  tags            IdeaTag[]
+  votes           Vote[]
+  comments        Comment[]
+  followers       IdeaFollower[]
+  execution       Execution?
+}
+
+model Tag {
+  id         String    @id @default(cuid())
+  nome       String    @unique
+  created_by String?
+
+  ideas      IdeaTag[]
+}
+
+model IdeaTag {
+  idea_id String
+  tag_id  String
+
+  idea    Idea   @relation(fields: [idea_id], references: [id], onDelete: Cascade)
+  tag     Tag    @relation(fields: [tag_id], references: [id], onDelete: Cascade)
+
+  @@id([idea_id, tag_id])
+}
+
+model Vote {
+  id         String   @id @default(cuid())
+  idea_id    String
+  user_id    String
+  created_at DateTime @default(now())
+
+  idea       Idea     @relation(fields: [idea_id], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [user_id], references: [id])
+
+  @@unique([idea_id, user_id])
+}
+
+model Comment {
+  id         String   @id @default(cuid())
+  idea_id    String
+  user_id    String
+  comentario String
+  created_at DateTime @default(now())
+
+  idea       Idea     @relation(fields: [idea_id], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [user_id], references: [id])
+}
+
+model IdeaFollower {
+  id      String @id @default(cuid())
+  idea_id String
+  user_id String
+
+  idea    Idea   @relation(fields: [idea_id], references: [id], onDelete: Cascade)
+  user    User   @relation(fields: [user_id], references: [id])
+
+  @@unique([idea_id, user_id])
+}
+
+model Execution {
+  id             String    @id @default(cuid())
+  idea_id        String    @unique
+  executor_id    String
+  plano_execucao String?
+  resultado      String?
+  ganho_estimado Float?
+  ganho_real     Float?
+  data_inicio    DateTime?
+  data_fim       DateTime?
+
+  idea           Idea      @relation(fields: [idea_id], references: [id], onDelete: Cascade)
+  executor       User      @relation(fields: [executor_id], references: [id])
+}
+
+model Notification {
+  id         String   @id @default(cuid())
+  user_id    String
+  tipo       String
+  mensagem   String
+  lida       Boolean  @default(false)
+  created_at DateTime @default(now())
+
+  user       User     @relation(fields: [user_id], references: [id])
+}
+
+model SystemConfig {
+  id    String @id @default(cuid())
+  chave String @unique
+  valor String
+}
